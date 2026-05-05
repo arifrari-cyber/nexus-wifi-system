@@ -38,7 +38,7 @@ api.interceptors.response.use(
 const checkAuth = () => {
     const token = getToken();
     const path = window.location.pathname;
-    const isLoginPage = path.includes('index.html') || path.endsWith('/');
+    const isLoginPage = path.includes('index.html') || path.endsWith('system/') || path.endsWith('system');
     const isRegisterPage = path.includes('register.html');
 
     if (!token && !isLoginPage && !isRegisterPage) {
@@ -67,10 +67,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await api.post('/api/auth/login', { identifier, password });
                 if (res.data.success) {
                     setToken(res.data.token);
-                    window.location.href = 'dashboard.html';
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Login Successful',
+                        text: 'Welcome to Nexus WiFi!',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = 'dashboard.html';
+                    });
                 }
             } catch (err) {
-                alert(err.response?.data?.message || 'Login failed');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Login Failed',
+                    text: err.response?.data?.message || 'Invalid email/mobile or password'
+                });
             }
         });
     }
@@ -89,16 +101,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmPassword: document.getElementById('confirmPassword').value
             };
 
-            if (data.password !== data.confirmPassword) return alert('Passwords do not match');
+            if (data.password !== data.confirmPassword) {
+                return Swal.fire('Error', 'Passwords do not match', 'error');
+            }
 
             try {
                 const res = await api.post('/api/auth/register', data);
                 if (res.data.success) {
-                    alert('Registration successful! Please login.');
-                    window.location.href = 'index.html';
+                    Swal.fire('Success', 'Registration successful! Please login.', 'success').then(() => {
+                        window.location.href = 'index.html';
+                    });
                 }
             } catch (err) {
-                alert(err.response?.data?.message || 'Registration failed');
+                Swal.fire('Error', err.response?.data?.message || 'Registration failed', 'error');
             }
         });
     }
@@ -160,15 +175,17 @@ async function loadDashboard() {
             }
         }
     } catch (err) {
-        window.location.href = 'index.html';
+        console.error('Dashboard Error:', err);
     }
 }
 
 async function loadPackages() {
+    const list = document.getElementById('packageList');
+    list.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400">Loading packages...</div>';
+    
     try {
         const res = await api.get('/api/subscription/packages');
         const packages = res.data.data;
-        const list = document.getElementById('packageList');
         
         list.innerHTML = packages.map(pkg => `
             <div class="glass p-8 flex flex-col premium-shadow border-2 ${pkg.recommended ? 'border-sky-500 scale-105' : 'border-transparent'}">
@@ -186,13 +203,20 @@ async function loadPackages() {
             </div>
         `).join('');
     } catch (err) {
-        alert('Failed to load packages');
+        list.innerHTML = '<div class="col-span-full text-center py-20 text-red-400">Failed to load packages. Please refresh.</div>';
     }
 }
 
 let activeTranId = null;
 
 async function initiatePayment(packageType) {
+    Swal.fire({
+        title: 'Processing...',
+        text: 'Generating payment details',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
     try {
         const res = await api.post('/api/payment/cck-te', { packageType, method: 'BKASH' });
         const data = res.data.data;
@@ -200,9 +224,12 @@ async function initiatePayment(packageType) {
         
         document.getElementById('merchantNumber').innerText = data.paymentNumber;
         document.getElementById('refId').innerText = data.tranId;
+        
+        Swal.close();
         document.getElementById('paymentModal').classList.remove('hidden');
+        lucide.createIcons();
     } catch (err) {
-        alert('Failed to initiate payment');
+        Swal.fire('Error', 'Failed to initiate payment', 'error');
     }
 }
 
@@ -212,7 +239,14 @@ function closeModal() {
 
 document.getElementById('verifyBtn')?.addEventListener('click', async () => {
     const trxId = document.getElementById('trxId').value;
-    if (!trxId) return alert('Enter TrxID');
+    if (!trxId) return Swal.fire('Warning', 'Please enter TrxID', 'warning');
+
+    Swal.fire({
+        title: 'Verifying...',
+        text: 'Please wait while we confirm your payment',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
 
     try {
         const res = await api.post('/api/payment/verify', {
@@ -221,10 +255,11 @@ document.getElementById('verifyBtn')?.addEventListener('click', async () => {
             method: 'BKASH'
         });
         if (res.data.success) {
-            alert(res.data.message);
-            window.location.href = 'dashboard.html';
+            Swal.fire('Success', res.data.message, 'success').then(() => {
+                window.location.href = 'dashboard.html';
+            });
         }
     } catch (err) {
-        alert(err.response?.data?.message || 'Verification failed');
+        Swal.fire('Error', err.response?.data?.message || 'Verification failed', 'error');
     }
 });
