@@ -1,50 +1,65 @@
 const BASE_URL = 'https://api-three-tawny-22.vercel.app';
 
 // Helper: Save/Get Auth Token
-const setToken = (token) => localStorage.setItem('nexus_token', token);
+const setToken = (token) => {
+    localStorage.setItem('nexus_token', token);
+    console.log("Token saved to localStorage");
+};
 const getToken = () => localStorage.getItem('nexus_token');
 const removeToken = () => localStorage.removeItem('nexus_token');
 
 // Axios Instance
 const api = axios.create({
     baseURL: BASE_URL,
-    timeout: 20000,
+    timeout: 30000,
     headers: { 'Content-Type': 'application/json' }
 });
 
-// Interceptor
+// Interceptor to add token
 api.interceptors.request.use(config => {
     const token = getToken();
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
 });
 
+// Response interceptor
 api.interceptors.response.use(
-    res => res,
-    err => {
-        if (err.response && err.response.status === 401) {
-            removeToken();
-            if (!window.location.href.includes('index.html')) window.location.href = 'index.html';
+    response => response,
+    error => {
+        if (error.response && error.response.status === 401) {
+            console.warn("401 Unauthorized detected");
+            // Only redirect if NOT on login/register pages
+            const path = window.location.pathname;
+            if (!path.includes('index.html') && !path.includes('register.html') && !path.endsWith('/nexus-wifi-system/') && !path.endsWith('/')) {
+                removeToken();
+                window.location.href = 'index.html';
+            }
         }
-        return Promise.reject(err);
+        return Promise.reject(error);
     }
 );
 
-document.addEventListener('DOMContentLoaded', () => {
-    const path = window.location.pathname;
+// --- Auth Guard ---
+const checkAuth = () => {
     const token = getToken();
-    
-    // Auth Guard
-    const isAuthPage = path.includes('index.html') || path.includes('register.html') || path.endsWith('/') || path.endsWith('/nexus-wifi-system/');
-    
-    if (token && isAuthPage) {
+    const path = window.location.pathname;
+    const isLoginPage = path.includes('index.html') || path.endsWith('/') || path.endsWith('/nexus-wifi-system/') || path.endsWith('/nexus-wifi-system');
+    const isRegisterPage = path.includes('register.html');
+
+    if (token && (isLoginPage || isRegisterPage)) {
         window.location.href = 'dashboard.html';
-        return;
-    }
-    if (!token && !isAuthPage) {
+    } else if (!token && !isLoginPage && !isRegisterPage) {
         window.location.href = 'index.html';
-        return;
     }
+};
+
+// --- Page Specific Logic ---
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+    
+    const path = window.location.pathname;
 
     // Login
     const loginForm = document.getElementById('loginForm');
@@ -61,14 +76,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const password = document.getElementById('password').value;
 
                 const res = await api.post('/api/auth/login', { identifier, password });
-                if (res.data.success) {
+                
+                if (res.data.success && res.data.token) {
                     setToken(res.data.token);
-                    window.location.href = 'dashboard.html';
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Login Success',
+                        timer: 1000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = 'dashboard.html';
+                    });
+                } else {
+                    throw new Error("Token missing from response");
                 }
             } catch (err) {
                 btn.disabled = false;
                 btn.innerHTML = original;
-                Swal.fire('Login Error', err.response?.data?.message || 'Check your credentials or connection', 'error');
+                Swal.fire('Error', err.response?.data?.message || 'Login failed', 'error');
             }
         });
     }
@@ -80,14 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const btn = registerForm.querySelector('button');
             const original = btn.innerHTML;
-
             try {
                 const pass = document.getElementById('regPassword').value;
                 const confirm = document.getElementById('confirmPassword').value;
                 if (pass !== confirm) return Swal.fire('Error', 'Passwords do not match', 'error');
 
                 btn.disabled = true;
-                btn.innerHTML = 'Creating...';
+                btn.innerHTML = 'Registering...';
                 
                 const data = {
                     firstName: document.getElementById('firstName').value,
@@ -100,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const res = await api.post('/api/auth/register', data);
                 if (res.data.success) {
-                    Swal.fire('Success', 'Account created! Please login.', 'success').then(() => {
+                    Swal.fire('Success', 'Account created!', 'success').then(() => {
                         window.location.href = 'index.html';
                     });
                 }
@@ -140,7 +164,9 @@ async function loadDashboard() {
                 area.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 italic">No credentials. Upgrade to PAID.</div>';
             }
         }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+        console.error("Dashboard Load Error:", err);
+    }
 }
 
 async function loadPackages() {
@@ -149,7 +175,7 @@ async function loadPackages() {
     try {
         const res = await api.get('/api/subscription/packages');
         list.innerHTML = res.data.data.map(pkg => `
-            <div class="glass p-8 flex flex-col border-2 ${pkg.recommended ? 'border-sky-500 scale-105' : 'border-transparent'}">
+            <div class="glass p-8 flex flex-col border-2 ${pkg.recommended ? 'border-sky-500' : 'border-transparent'}">
                 <div class="text-sky-400 font-bold mb-2">${pkg.name}</div>
                 <div class="text-4xl font-bold mb-6">৳${pkg.price}</div>
                 <div class="text-sm text-slate-400 mb-8">${pkg.speed} Unlimited</div>
