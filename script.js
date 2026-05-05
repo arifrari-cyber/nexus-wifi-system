@@ -1,7 +1,10 @@
 const BASE_URL = 'https://api-three-tawny-22.vercel.app';
 
 // Helper: Save/Get Auth Token
-const setToken = (token) => localStorage.setItem('nexus_token', token);
+const setToken = (token) => {
+    console.log("Saving token:", token);
+    localStorage.setItem('nexus_token', token);
+};
 const getToken = () => localStorage.getItem('nexus_token');
 const removeToken = () => localStorage.removeItem('nexus_token');
 
@@ -24,9 +27,11 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
     response => response,
     error => {
+        console.error("API Error:", error.response);
         if (error.response && error.response.status === 401) {
+            console.warn("Unauthorized! Redirecting to login...");
             removeToken();
-            if (!window.location.pathname.includes('index.html')) {
+            if (!window.location.pathname.includes('index.html') && !window.location.pathname.endsWith('/')) {
                 window.location.href = 'index.html';
             }
         }
@@ -38,24 +43,27 @@ api.interceptors.response.use(
 const checkAuth = () => {
     const token = getToken();
     const path = window.location.pathname;
-    const isLoginPage = path.includes('index.html') || path.endsWith('system/') || path.endsWith('system');
-    const isRegisterPage = path.includes('register.html');
+    
+    // Check if current page is Login or Register
+    const isAuthPage = path.includes('index.html') || path.includes('register.html') || path.endsWith('/') || path.endsWith('/nexus-wifi-system/');
 
-    if (!token && !isLoginPage && !isRegisterPage) {
+    if (!token && !isAuthPage) {
+        console.log("No token found. Redirecting to login...");
         window.location.href = 'index.html';
-    } else if (token && (isLoginPage || isRegisterPage)) {
+    } else if (token && isAuthPage) {
+        console.log("User is already logged in. Redirecting to dashboard...");
         window.location.href = 'dashboard.html';
     }
 };
 
-checkAuth();
-
 // --- Page Specific Logic ---
 
 document.addEventListener('DOMContentLoaded', () => {
+    checkAuth();
+    
     const path = window.location.pathname;
 
-    // Login
+    // Login Form Logic
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -64,13 +72,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const password = document.getElementById('password').value;
 
             try {
+                Swal.fire({ title: 'Signing in...', didOpen: () => Swal.showLoading() });
                 const res = await api.post('/api/auth/login', { identifier, password });
+                
                 if (res.data.success) {
                     setToken(res.data.token);
                     Swal.fire({
                         icon: 'success',
-                        title: 'Login Successful',
-                        text: 'Welcome to Nexus WiFi!',
+                        title: 'Success!',
+                        text: 'Welcome back.',
                         timer: 1500,
                         showConfirmButton: false
                     }).then(() => {
@@ -78,16 +88,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             } catch (err) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Login Failed',
-                    text: err.response?.data?.message || 'Invalid email/mobile or password'
-                });
+                Swal.fire('Error', err.response?.data?.message || 'Invalid credentials', 'error');
             }
         });
     }
 
-    // Register
+    // Register Form Logic
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
@@ -101,14 +107,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmPassword: document.getElementById('confirmPassword').value
             };
 
-            if (data.password !== data.confirmPassword) {
-                return Swal.fire('Error', 'Passwords do not match', 'error');
-            }
+            if (data.password !== data.confirmPassword) return Swal.fire('Error', 'Passwords do not match', 'error');
 
             try {
+                Swal.fire({ title: 'Creating account...', didOpen: () => Swal.showLoading() });
                 const res = await api.post('/api/auth/register', data);
                 if (res.data.success) {
-                    Swal.fire('Success', 'Registration successful! Please login.', 'success').then(() => {
+                    Swal.fire('Success', 'Account created! Please login.', 'success').then(() => {
                         window.location.href = 'index.html';
                     });
                 }
@@ -118,24 +123,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Dashboard
+    // Dashboard Data Logic
     if (path.includes('dashboard.html')) {
         loadDashboard();
     }
 
-    // Subscription
+    // Subscription Logic
     if (path.includes('subscription.html')) {
         loadPackages();
     }
 
     // Logout
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            removeToken();
-            window.location.href = 'index.html';
-        });
-    }
+    document.getElementById('logoutBtn')?.addEventListener('click', () => {
+        removeToken();
+        window.location.href = 'index.html';
+    });
 });
 
 async function loadDashboard() {
@@ -155,81 +157,59 @@ async function loadDashboard() {
 
             const credsArea = document.getElementById('credentialsArea');
             if (user.accountSection === 'FREE') {
-                credsArea.innerHTML = `
-                    <div class="col-span-full py-10 text-center space-y-4">
-                        <div class="text-slate-500 italic">No credentials yet. Upgrade to PAID to get access.</div>
-                        <a href="subscription.html" class="text-sky-400 font-bold hover:underline">View Plans &rarr;</a>
-                    </div>
-                `;
+                credsArea.innerHTML = `<div class="col-span-full py-10 text-center italic text-slate-500">No active credentials. Please upgrade your plan.</div>`;
             } else {
                 credsArea.innerHTML = `
-                    <div class="space-y-2">
-                        <label class="text-xs text-slate-500 uppercase">Username</label>
-                        <div class="p-4 bg-white/5 rounded-xl font-mono">${user.pppoe_username}</div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase text-slate-500">PPPoE Username</label>
+                        <div class="p-3 bg-white/5 rounded-lg font-mono text-sm border border-white/5">${user.pppoe_username}</div>
                     </div>
-                    <div class="space-y-2">
-                        <label class="text-xs text-slate-500 uppercase">Password</label>
-                        <div class="p-4 bg-white/5 rounded-xl font-mono">${user.pppoe_password}</div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase text-slate-500">PPPoE Password</label>
+                        <div class="p-3 bg-white/5 rounded-lg font-mono text-sm border border-white/5">${user.pppoe_password}</div>
                     </div>
                 `;
             }
         }
     } catch (err) {
-        console.error('Dashboard Error:', err);
+        console.error("Dashboard Load Error:", err);
     }
 }
 
 async function loadPackages() {
     const list = document.getElementById('packageList');
-    list.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400">Loading packages...</div>';
+    if (!list) return;
     
     try {
         const res = await api.get('/api/subscription/packages');
         const packages = res.data.data;
-        
         list.innerHTML = packages.map(pkg => `
-            <div class="glass p-8 flex flex-col premium-shadow border-2 ${pkg.recommended ? 'border-sky-500 scale-105' : 'border-transparent'}">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="text-sky-400 font-bold text-lg">${pkg.name}</div>
-                    <div class="text-slate-400 text-sm">${pkg.speed}</div>
-                </div>
-                <div class="flex items-baseline gap-1 mb-8">
-                    <span class="text-4xl font-bold">৳${pkg.price}</span>
-                    <span class="text-slate-500 text-sm">/month</span>
-                </div>
-                <button onclick="initiatePayment('${pkg.name}')" class="mt-auto w-full py-3 btn-primary ${pkg.recommended ? '' : 'opacity-80 hover:opacity-100'}">
-                    Select Plan
-                </button>
+            <div class="glass p-8 flex flex-col border-2 ${pkg.recommended ? 'border-sky-500' : 'border-transparent'}">
+                <div class="text-sky-400 font-bold mb-2">${pkg.name}</div>
+                <div class="text-4xl font-bold mb-6">৳${pkg.price}<span class="text-xs text-slate-500 font-normal">/mo</span></div>
+                <div class="text-sm text-slate-400 mb-8">${pkg.speed} Unlimited Data</div>
+                <button onclick="initiatePayment('${pkg.name}')" class="btn-primary w-full mt-auto">Choose Plan</button>
             </div>
         `).join('');
     } catch (err) {
-        list.innerHTML = '<div class="col-span-full text-center py-20 text-red-400">Failed to load packages. Please refresh.</div>';
+        console.error("Package Load Error:", err);
     }
 }
 
 let activeTranId = null;
 
 async function initiatePayment(packageType) {
-    Swal.fire({
-        title: 'Processing...',
-        text: 'Generating payment details',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-
     try {
+        Swal.fire({ title: 'Requesting...', didOpen: () => Swal.showLoading() });
         const res = await api.post('/api/payment/cck-te', { packageType, method: 'BKASH' });
-        const data = res.data.data;
-        activeTranId = data.tranId;
-        
-        document.getElementById('merchantNumber').innerText = data.paymentNumber;
-        document.getElementById('refId').innerText = data.tranId;
-        
+        activeTranId = res.data.data.tranId;
+        document.getElementById('merchantNumber').innerText = res.data.data.paymentNumber;
+        document.getElementById('refId').innerText = res.data.data.tranId;
         Swal.close();
         document.getElementById('paymentModal').classList.remove('hidden');
         lucide.createIcons();
     } catch (err) {
-        Swal.fire('Error', 'Failed to initiate payment', 'error');
+        Swal.fire('Error', 'Payment initiation failed', 'error');
     }
 }
 
@@ -239,25 +219,13 @@ function closeModal() {
 
 document.getElementById('verifyBtn')?.addEventListener('click', async () => {
     const trxId = document.getElementById('trxId').value;
-    if (!trxId) return Swal.fire('Warning', 'Please enter TrxID', 'warning');
-
-    Swal.fire({
-        title: 'Verifying...',
-        text: 'Please wait while we confirm your payment',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-
+    if (!trxId) return Swal.fire('Warning', 'Enter TrxID', 'warning');
+    
     try {
-        const res = await api.post('/api/payment/verify', {
-            tranId: activeTranId,
-            trxId: trxId,
-            method: 'BKASH'
-        });
+        Swal.fire({ title: 'Verifying...', didOpen: () => Swal.showLoading() });
+        const res = await api.post('/api/payment/verify', { tranId: activeTranId, trxId, method: 'BKASH' });
         if (res.data.success) {
-            Swal.fire('Success', res.data.message, 'success').then(() => {
-                window.location.href = 'dashboard.html';
-            });
+            Swal.fire('Success', res.data.message, 'success').then(() => window.location.href = 'dashboard.html');
         }
     } catch (err) {
         Swal.fire('Error', err.response?.data?.message || 'Verification failed', 'error');
