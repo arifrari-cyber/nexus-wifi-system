@@ -1,10 +1,7 @@
 const BASE_URL = 'https://api-three-tawny-22.vercel.app';
 
 // Helper: Save/Get Auth Token
-const setToken = (token) => {
-    localStorage.setItem('nexus_token', token);
-    console.log("Token saved to localStorage");
-};
+const setToken = (token) => localStorage.setItem('nexus_token', token);
 const getToken = () => localStorage.getItem('nexus_token');
 const removeToken = () => localStorage.removeItem('nexus_token');
 
@@ -15,33 +12,25 @@ const api = axios.create({
     headers: { 'Content-Type': 'application/json' }
 });
 
-// Interceptor to add token
+// Interceptor
 api.interceptors.request.use(config => {
     const token = getToken();
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
 
-// Response interceptor
 api.interceptors.response.use(
-    response => response,
-    error => {
-        if (error.response && error.response.status === 401) {
-            console.warn("401 Unauthorized detected");
-            // Only redirect if NOT on login/register pages
-            const path = window.location.pathname;
-            if (!path.includes('index.html') && !path.includes('register.html') && !path.endsWith('/nexus-wifi-system/') && !path.endsWith('/')) {
-                removeToken();
-                window.location.href = 'index.html';
-            }
+    res => res,
+    err => {
+        if (err.response && err.response.status === 401) {
+            removeToken();
+            if (!window.location.href.includes('index.html')) window.location.href = 'index.html';
         }
-        return Promise.reject(error);
+        return Promise.reject(err);
     }
 );
 
-// --- Auth Guard ---
+// Auth Guard
 const checkAuth = () => {
     const token = getToken();
     const path = window.location.pathname;
@@ -55,13 +44,13 @@ const checkAuth = () => {
     }
 };
 
-// --- Page Specific Logic ---
-document.addEventListener('DOMContentLoaded', () => {
+// Main Initialization
+function init() {
     checkAuth();
     
     const path = window.location.pathname;
 
-    // Login
+    // Login Form
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -76,19 +65,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const password = document.getElementById('password').value;
 
                 const res = await api.post('/api/auth/login', { identifier, password });
+                // FIX: API returns token inside res.data.data.token
+                const token = res.data.data?.token || res.data.token;
                 
-                if (res.data.success && res.data.token) {
-                    setToken(res.data.token);
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Login Success',
-                        timer: 1000,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.href = 'dashboard.html';
-                    });
+                if (token) {
+                    setToken(token);
+                    Swal.fire({ icon: 'success', title: 'Login Success', timer: 1000, showConfirmButton: false })
+                        .then(() => window.location.href = 'dashboard.html');
                 } else {
-                    throw new Error("Token missing from response");
+                    throw new Error("Invalid response from server");
                 }
             } catch (err) {
                 btn.disabled = false;
@@ -98,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Register
+    // Register Form
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
@@ -124,9 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const res = await api.post('/api/auth/register', data);
                 if (res.data.success) {
-                    Swal.fire('Success', 'Account created!', 'success').then(() => {
-                        window.location.href = 'index.html';
-                    });
+                    Swal.fire('Success', 'Account created!', 'success').then(() => window.location.href = 'index.html');
                 }
             } catch (err) {
                 btn.disabled = false;
@@ -143,7 +126,14 @@ document.addEventListener('DOMContentLoaded', () => {
         removeToken();
         window.location.href = 'index.html';
     });
-});
+}
+
+// Start app
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 
 async function loadDashboard() {
     try {
@@ -164,9 +154,7 @@ async function loadDashboard() {
                 area.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 italic">No credentials. Upgrade to PAID.</div>';
             }
         }
-    } catch (err) {
-        console.error("Dashboard Load Error:", err);
-    }
+    } catch (err) { console.error("Dashboard Load Error:", err); }
 }
 
 async function loadPackages() {
@@ -174,7 +162,11 @@ async function loadPackages() {
     if (!list) return;
     try {
         const res = await api.get('/api/subscription/packages');
-        list.innerHTML = res.data.data.map(pkg => `
+        // FIX: If res.data.data is an object, convert it to an array
+        const packagesData = res.data.data;
+        const packagesArray = Array.isArray(packagesData) ? packagesData : Object.values(packagesData);
+        
+        list.innerHTML = packagesArray.map(pkg => `
             <div class="glass p-8 flex flex-col border-2 ${pkg.recommended ? 'border-sky-500' : 'border-transparent'}">
                 <div class="text-sky-400 font-bold mb-2">${pkg.name}</div>
                 <div class="text-4xl font-bold mb-6">৳${pkg.price}</div>
@@ -182,7 +174,7 @@ async function loadPackages() {
                 <button onclick="initiatePayment('${pkg.name}')" class="btn-primary w-full mt-auto">Select Plan</button>
             </div>
         `).join('');
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Package Load Error:", err); }
 }
 
 let activeTranId = null;
