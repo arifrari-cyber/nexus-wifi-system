@@ -14,9 +14,41 @@ const api = axios.create({
 // Interceptor to add token
 api.interceptors.request.use(config => {
     const token = getToken();
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
 });
+
+// Response interceptor to handle unauthorized access
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response && error.response.status === 401) {
+            removeToken();
+            if (!window.location.pathname.includes('index.html')) {
+                window.location.href = 'index.html';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
+// --- Auth Guard ---
+const checkAuth = () => {
+    const token = getToken();
+    const path = window.location.pathname;
+    const isLoginPage = path.includes('index.html') || path.endsWith('/');
+    const isRegisterPage = path.includes('register.html');
+
+    if (!token && !isLoginPage && !isRegisterPage) {
+        window.location.href = 'index.html';
+    } else if (token && (isLoginPage || isRegisterPage)) {
+        window.location.href = 'dashboard.html';
+    }
+};
+
+checkAuth();
 
 // --- Page Specific Logic ---
 
