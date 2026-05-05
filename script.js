@@ -9,6 +9,7 @@ const removeToken = () => localStorage.removeItem('nexus_token');
 const api = axios.create({
     baseURL: BASE_URL,
     timeout: 30000,
+    withCredentials: true,
     headers: { 'Content-Type': 'application/json' }
 });
 
@@ -65,20 +66,21 @@ function init() {
                 const password = document.getElementById('password').value;
 
                 const res = await api.post('/api/auth/login', { identifier, password });
-                // FIX: API returns token inside res.data.data.token
-                const token = res.data.data?.token || res.data.token;
                 
-                if (token) {
-                    setToken(token);
+                if (res.data.success) {
+                    const token = res.data.data?.token || res.data.token;
+                    if (token) setToken(token);
+                    
                     Swal.fire({ icon: 'success', title: 'Login Success', timer: 1000, showConfirmButton: false })
                         .then(() => window.location.href = 'dashboard.html');
                 } else {
-                    throw new Error("Invalid response from server");
+                    throw new Error(res.data.message || "Invalid credentials");
                 }
             } catch (err) {
                 btn.disabled = false;
                 btn.innerHTML = original;
-                Swal.fire('Error', err.response?.data?.message || 'Login failed', 'error');
+                const errorMsg = err.response?.data?.message || err.message || 'Login failed';
+                Swal.fire('Error', errorMsg, 'error');
             }
         });
     }
