@@ -46,7 +46,11 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
-    <script>lucide.createIcons();</script>
+    <script src="script.js" defer></script>
+    <script defer>
+        document.addEventListener('DOMContentLoaded', () => {
+            if(typeof lucide !== 'undefined') lucide.createIcons();
+        });
+    </script>
 </body>
 </html>
