@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription - Nexus WiFi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <nav class="glass sticky top-0 z-50 rounded-none border-t-0 border-x-0 p-4">
+        <div class="container mx-auto flex items-center justify-between">
+            <a href="dashboard.html" class="flex items-center gap-2 text-slate-400 hover:text-white transition-all">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                Back to Dashboard
+            </a>
+            <h1 class="text-xl font-bold bg-gradient-to-r from-sky-400 to-sky-600 bg-clip-text text-transparent">NEXUS PLANS</h1>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 md:p-8 space-y-12 animate-fade">
+        <div class="text-center space-y-4">
+            <h2 class="text-4xl font-bold">Choose Your Package</h2>
+            <p class="text-slate-400 max-w-lg mx-auto">Get the best internet experience with our premium packages.</p>
+        </div>
+
+        <div id="packageList" class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <!-- Loaded via JS -->
+        </div>
+
+        <!-- Payment Modal -->
+        <div id="paymentModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div class="glass w-full max-w-md p-8 relative">
+                <button onclick="closeModal()" class="absolute top-6 right-6 text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+                
+                <div class="text-center space-y-6">
+                    <div class="w-16 h-16 bg-sky-500/20 text-sky-500 rounded-2xl flex items-center justify-center mx-auto">
+                        <i data-lucide="credit-card" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold">Complete Payment</h3>
+                    
+                    <div class="bg-white/5 p-6 rounded-2xl space-y-4 text-left text-sm">
+                        <div class="flex justify-between"><span class="text-slate-400">Merchant Number:</span><span id="merchantNumber" class="font-bold">017XXXXXXXX</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Reference ID:</span><span id="refId" class="font-bold font-mono">TXN_123</span></div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <input type="text" id="trxId" placeholder="Enter Transaction ID (TrxID)" class="w-full p-4 bg-white/5 border border-white/10 rounded-xl outline-none focus:border-sky-500 font-mono text-center">
+                        <button id="verifyBtn" class="btn-primary w-full">Verify & Activate</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

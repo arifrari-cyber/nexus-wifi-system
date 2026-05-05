@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Nexus WiFi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="flex items-center justify-center p-4">
+    <div class="glass w-full max-w-2xl p-8 md:p-10 animate-fade">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-sky-400 to-sky-600 bg-clip-text text-transparent">JOIN NEXUS</h1>
+            <p class="text-slate-400 mt-2">Create your account to get started</p>
+        </div>
+
+        <form id="registerForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="input-group">
+                <label>First Name</label>
+                <input type="text" id="firstName" placeholder="Arif" required>
+            </div>
+            <div class="input-group">
+                <label>Last Name</label>
+                <input type="text" id="lastName" placeholder="Islam" required>
+            </div>
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="email" placeholder="arif@example.com" required>
+            </div>
+            <div class="input-group">
+                <label>Mobile Number</label>
+                <input type="tel" id="mobile" placeholder="017XXXXXXXX" required>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="regPassword" placeholder="••••••••" required>
+            </div>
+            <div class="input-group">
+                <label>Confirm Password</label>
+                <input type="password" id="confirmPassword" placeholder="••••••••" required>
+            </div>
+
+            <div class="md:col-span-2 pt-4">
+                <button type="submit" class="btn-primary w-full flex items-center justify-center gap-2">
+                    <i data-lucide="user-plus" class="w-5 h-5"></i>
+                    Create Account
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center mt-8 text-slate-400 text-sm">
+            Already have an account? <a href="index.html" class="text-sky-400 font-bold hover:underline">Login here</a>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Nexus WiFi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-8 md:p-10 animate-fade">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-sky-400 to-sky-600 bg-clip-text text-transparent">NEXUS WIFI</h1>
+            <p class="text-slate-400 mt-2">Sign in to manage your connection</p>
+        </div>
+
+        <form id="loginForm" class="space-y-6">
+            <div class="input-group">
+                <label>Email or Mobile</label>
+                <div class="relative">
+                    <input type="text" id="identifier" placeholder="Enter your email or mobile" required>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Password</label>
+                <div class="relative">
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary w-full flex items-center justify-center gap-2">
+                <i data-lucide="log-in" class="w-5 h-5"></i>
+                Sign In
+            </button>
+        </form>
+
+        <div class="text-center mt-8 text-slate-400 text-sm">
+            Don't have an account? <a href="register.html" class="text-sky-400 font-bold hover:underline">Register Now</a>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
