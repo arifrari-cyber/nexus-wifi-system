@@ -263,19 +263,43 @@ async function loadPackages() {
     const list = document.getElementById('packageList');
     if (!list) return;
     try {
+        console.log("Fetching packages...");
         const res = await api.get('/api/subscription/packages');
+        console.log("Packages Response:", res.data);
+        
         const packagesData = res.data.data;
+        if (!packagesData) {
+            list.innerHTML = '<p class="text-center col-span-full">No packages available at the moment.</p>';
+            return;
+        }
+
         const packagesArray = Array.isArray(packagesData) ? packagesData : Object.values(packagesData);
         
         list.innerHTML = packagesArray.map(pkg => `
-            <div class="glass p-8 flex flex-col border-2 ${pkg.recommended ? 'border-sky-500' : 'border-transparent'}">
+            <div class="glass p-8 flex flex-col border-2 ${pkg.recommended ? 'border-sky-500' : 'border-transparent'} relative">
+                ${pkg.recommended ? '<span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-500 text-white px-4 py-1 rounded-full text-xs font-bold">RECOMMENDED</span>' : ''}
                 <div class="text-sky-400 font-bold mb-2">${pkg.name}</div>
                 <div class="text-4xl font-bold mb-6">৳${pkg.price}</div>
-                <div class="text-sm text-slate-400 mb-8">${pkg.speed} Unlimited</div>
-                <button onclick="initiatePayment('${pkg.name}')" class="btn-primary w-full mt-auto">Select Plan</button>
+                <div class="text-sm text-slate-400 mb-8">${pkg.speed || (pkg.features ? pkg.features[0] : 'Standard Speed')} Unlimited</div>
+                
+                <ul class="space-y-3 mb-8 flex-grow">
+                    ${(pkg.features || []).map(feat => `
+                        <li class="flex items-center gap-2 text-sm text-slate-300">
+                            <i data-lucide="check-circle-2" class="w-4 h-4 text-sky-500"></i>
+                            ${feat}
+                        </li>
+                    `).join('')}
+                </ul>
+
+                <button onclick="initiatePayment('${pkg.name.toUpperCase()}')" class="btn-primary w-full mt-auto">Select Plan</button>
             </div>
         `).join('');
-    } catch (err) { console.error("Package Load Error:", err); }
+        
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } catch (err) { 
+        console.error("Package Load Error:", err);
+        list.innerHTML = '<p class="text-center col-span-full text-red-400">Failed to load packages. Please try again later.</p>';
+    }
 }
 
 let activeTranId = null;
