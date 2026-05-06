@@ -270,6 +270,7 @@ async function loadDashboard() {
         const res = await api.get('/api/user/profile');
         if (res.data.success) {
             const user = res.data.data.user;
+            if (!user) return;
             if (document.getElementById('userName')) document.getElementById('userName').innerText = `Welcome, ${user.fullName}`;
             
             const statusEl = document.getElementById('accountStatus');
