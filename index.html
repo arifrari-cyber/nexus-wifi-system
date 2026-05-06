@@ -20,26 +20,47 @@
             <p class="text-slate-400 mt-2">Sign in to manage your connection</p>
         </div>
 
-        <form id="loginForm" class="space-y-6">
-            <div class="input-group">
-                <label>Email or Mobile</label>
-                <div class="relative">
-                    <input type="text" id="identifier" placeholder="Enter your email or mobile" required>
+        <!-- Login Section (Step 1) -->
+        <div id="loginSection">
+            <form id="loginForm" class="space-y-6">
+                <div class="input-group">
+                    <label>Email or Mobile</label>
+                    <div class="relative">
+                        <input type="text" id="identifier" placeholder="Enter your email or mobile" required>
+                    </div>
                 </div>
-            </div>
 
-            <div class="input-group">
-                <label>Password</label>
-                <div class="relative">
-                    <input type="password" id="password" placeholder="••••••••" required>
+                <div class="input-group">
+                    <label>Password</label>
+                    <div class="relative">
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
                 </div>
-            </div>
 
-            <button type="submit" class="btn-primary w-full flex items-center justify-center gap-2">
-                <i data-lucide="log-in" class="w-5 h-5"></i>
-                Sign In
-            </button>
-        </form>
+                <button type="submit" class="btn-primary w-full flex items-center justify-center gap-2">
+                    <i data-lucide="log-in" class="w-5 h-5"></i>
+                    Next Step
+                </button>
+            </form>
+            <div class="text-center mt-4">
+                <button onclick="handleForgotPassword()" class="text-sky-400 text-xs hover:underline">Forgot Password?</button>
+            </div>
+        </div>
+
+        <!-- OTP Section (Step 2) -->
+        <div id="otpSection" class="hidden animate-fade">
+            <div class="text-center mb-6">
+                <p class="text-sm text-slate-400">A 6-digit code has been sent to <br><b id="displayEmail" class="text-white"></b></p>
+            </div>
+            <form id="verifyOtpForm" class="space-y-6">
+                <div class="input-group">
+                    <label>Enter Verification Code</label>
+                    <input type="text" id="loginOtp" maxlength="6" placeholder="123456" class="text-center text-2xl tracking-[1em]" required>
+                </div>
+                <button type="submit" class="btn-primary w-full">Verify & Sign In</button>
+                <button type="button" onclick="location.reload()" class="w-full text-slate-500 text-xs hover:text-white">Back to Login</button>
+            </form>
+        </div>
 
         <div class="text-center mt-8 text-slate-400 text-sm">
             Don't have an account? <a href="register.html" class="text-sky-400 font-bold hover:underline">Register Now</a>
