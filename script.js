@@ -271,12 +271,19 @@ async function loadDashboard() {
         if (res.data.success) {
             const user = res.data.data.user;
             if (document.getElementById('userName')) document.getElementById('userName').innerText = `Welcome, ${user.fullName}`;
-            if (document.getElementById('accountStatus')) document.getElementById('accountStatus').innerText = `Status: ${user.accountSection}`;
+            
+            const statusEl = document.getElementById('accountStatus');
+            if (statusEl) {
+                const isActive = user.subscriptionStatus === 'active';
+                statusEl.innerText = `Status: ${isActive ? 'ACTIVE' : user.accountSection}`;
+                statusEl.className = `px-4 py-2 rounded-full text-sm font-bold ${isActive ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`;
+            }
+            
             if (document.getElementById('expirationDate')) document.getElementById('expirationDate').innerText = user.expirationDate ? new Date(user.expirationDate).toLocaleDateString() : 'N/A';
             
             const area = document.getElementById('credentialsArea');
             if (area) {
-                if (user.accountSection === 'PAID') {
+                if (user.subscriptionStatus === 'active' && user.pppoe_username) {
                     area.innerHTML = `
                         <div class="space-y-1"><label class="text-[10px] text-slate-500 uppercase">Username</label><div class="p-3 bg-white/5 rounded-lg font-mono text-sm border border-white/5">${user.pppoe_username}</div></div>
                         <div class="space-y-1"><label class="text-[10px] text-slate-500 uppercase">Password</label><div class="p-3 bg-white/5 rounded-lg font-mono text-sm border border-white/5">${user.pppoe_password}</div></div>
