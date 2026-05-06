@@ -143,7 +143,7 @@ async function handleRegister(e) {
         await user.sendEmailVerification();
 
         // 3. Save additional info in our backend/Firestore
-        await axios.post(`${BASE_URL}/api/auth/register`, {
+        await api.post('/api/auth/register', {
             firstName: data.firstName,
             lastName: data.lastName,
             email: data.email,
@@ -192,8 +192,11 @@ async function handleLogin(e) {
             });
         }
 
-        const idToken = await user.getIdToken();
-        const response = await axios.post(`${BASE_URL}/api/auth/login`, { idToken });
+        console.log("Firebase Login Successful, getting ID Token...");
+        const idToken = await user.getIdToken(true); // Force refresh token
+        console.log("ID Token received, sending to backend...");
+        
+        const response = await api.post('/api/auth/login', { idToken });
 
         if (response.data.success) {
             setToken(response.data.data.token);
