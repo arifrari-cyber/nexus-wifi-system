@@ -139,8 +139,8 @@ async function handleRegister(e) {
         const userCredential = await auth.createUserWithEmailAndPassword(data.email, data.password);
         const user = userCredential.user;
 
-        // 2. Send Verification Email
-        await user.sendEmailVerification();
+        // 2. Send Custom Verification Email via our Backend
+        await api.post('/api/auth/send-verification', { email: data.email });
 
         // 3. Save additional info in our backend/Firestore
         await api.post('/api/auth/register', {
@@ -186,7 +186,7 @@ async function handleLogin(e) {
                 confirmButtonText: 'Resend Email',
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    await user.sendEmailVerification();
+                    await api.post('/api/auth/send-verification', { email: user.email });
                     Swal.fire('Sent!', 'Verification email resent.', 'success');
                 }
             });
