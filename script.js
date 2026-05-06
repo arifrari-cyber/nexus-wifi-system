@@ -48,64 +48,44 @@ const checkAuth = () => {
 // Main Initialization
 function init() {
     checkAuth();
-
+    
     const path = window.location.pathname;
 
-    // Login Form Step 1
+    // Login Form (Direct Login)
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = loginForm.querySelector('button');
             const original = btn.innerHTML;
-
+            
             try {
                 btn.disabled = true;
-                btn.innerHTML = 'Checking...';
+                btn.innerHTML = 'Signing in...';
                 const identifier = document.getElementById('identifier').value;
                 const password = document.getElementById('password').value;
 
                 const res = await api.post('/api/auth/login', { identifier, password });
-
+                
                 if (res.data.success) {
-                    document.getElementById('loginSection').classList.add('hidden');
-                    document.getElementById('otpSection').classList.remove('hidden');
-                    document.getElementById('displayEmail').innerText = res.data.data.email;
-                    Swal.fire({ icon: 'info', title: 'Code Sent', text: 'Check your email for the verification code', timer: 2000, showConfirmButton: false });
+                    const token = res.data.data?.token || res.data.token;
+                    if (token) setToken(token);
+                    
+                    Swal.fire({ icon: 'success', title: 'Login Success', timer: 1000, showConfirmButton: false })
+                        .then(() => window.location.href = 'dashboard.html');
+                } else {
+                    throw new Error(res.data.message || "Invalid credentials");
                 }
             } catch (err) {
                 btn.disabled = false;
                 btn.innerHTML = original;
-                Swal.fire('Error', err.response?.data?.message || 'Login failed', 'error');
+                const errorMsg = err.response?.data?.message || err.message || 'Login failed';
+                Swal.fire('Error', errorMsg, 'error');
             }
         });
     }
 
-    // Login Form Step 2 (Verify OTP)
-    const verifyOtpForm = document.getElementById('verifyOtpForm');
-    if (verifyOtpForm) {
-        verifyOtpForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('displayEmail').innerText;
-            const otp = document.getElementById('loginOtp').value;
-
-            try {
-                Swal.fire({ title: 'Verifying...', didOpen: () => Swal.showLoading() });
-                const res = await api.post('/api/auth/verify-login', { email, otp });
-
-                if (res.data.success) {
-                    const token = res.data.data.token;
-                    setToken(token);
-                    Swal.fire({ icon: 'success', title: 'Welcome!', timer: 1000, showConfirmButton: false })
-                        .then(() => window.location.href = 'dashboard.html');
-                }
-            } catch (err) {
-                Swal.fire('Error', err.response?.data?.message || 'Verification failed', 'error');
-            }
-        });
-    }
-
-    // Register Form
+    // Register Form (With OTP)
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
@@ -121,20 +101,46 @@ function init() {
                 if (pass !== confirm) return Swal.fire('Error', 'Passwords do not match', 'error');
 
                 btn.disabled = true;
-                btn.innerHTML = 'Registering...';
+                btn.innerHTML = 'Sending OTP...';
+                
+                // Step 1: Send OTP
+                const otpRes = await api.post('/api/auth/send-register-otp', { email, mobile });
+                
+                if (otpRes.data.success) {
+                    const { value: otp } = await Swal.fire({
+                        title: 'Verify Email',
+                        text: `A 6-digit code has been sent to ${email}`,
+                        input: 'text',
+                        inputPlaceholder: 'Enter OTP',
+                        showCancelButton: true,
+                        confirmButtonText: 'Verify & Register',
+                        inputValidator: (value) => {
+                            if (!value) return 'You need to enter the code!';
+                            if (value.length !== 6) return 'Code must be 6 digits';
+                        }
+                    });
 
-                const data = {
-                    firstName: document.getElementById('firstName').value,
-                    lastName: document.getElementById('lastName').value,
-                    email: document.getElementById('email').value,
-                    mobile: document.getElementById('mobile').value,
-                    password: pass,
-                    confirmPassword: confirm
-                };
+                    if (otp) {
+                        btn.innerHTML = 'Creating Account...';
+                        const data = {
+                            firstName: document.getElementById('firstName').value,
+                            lastName: document.getElementById('lastName').value,
+                            email,
+                            mobile,
+                            password: pass,
+                            confirmPassword: confirm,
+                            otp
+                        };
 
-                const res = await api.post('/api/auth/register', data);
-                if (res.data.success) {
-                    Swal.fire('Success', 'Account created!', 'success').then(() => window.location.href = 'index.html');
+                        const res = await api.post('/api/auth/register', data);
+                        if (res.data.success) {
+                            Swal.fire('Success', 'Account created! You can now login.', 'success')
+                                .then(() => window.location.href = 'index.html');
+                        }
+                    } else {
+                        btn.disabled = false;
+                        btn.innerHTML = original;
+                    }
                 }
             } catch (err) {
                 btn.disabled = false;
@@ -143,6 +149,58 @@ function init() {
             }
         });
     }
+
+    // Forgot Password Flow
+    document.getElementById('forgotPasswordLink')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const { value: identifier } = await Swal.fire({
+            title: 'Forgot Password',
+            text: 'Enter your email or mobile to receive a reset code',
+            input: 'text',
+            inputPlaceholder: 'Email or Mobile',
+            showCancelButton: true
+        });
+
+        if (identifier) {
+            try {
+                Swal.fire({ title: 'Sending...', didOpen: () => Swal.showLoading() });
+                const res = await api.post('/api/auth/forgot-password', { identifier });
+                
+                if (res.data.success) {
+                    const email = res.data.data.email;
+                    const { value: formValues } = await Swal.fire({
+                        title: 'Reset Password',
+                        html:
+                            `<p class="text-sm mb-4">Code sent to ${email}</p>` +
+                            '<input id="swal-otp" class="swal2-input" placeholder="6-digit Code">' +
+                            '<input id="swal-pass" type="password" class="swal2-input" placeholder="New Password">' +
+                            '<input id="swal-confirm" type="password" class="swal2-input" placeholder="Confirm Password">',
+                        focusConfirm: false,
+                        showCancelButton: true,
+                        preConfirm: () => {
+                            return {
+                                otp: document.getElementById('swal-otp').value,
+                                newPassword: document.getElementById('swal-pass').value,
+                                confirmPassword: document.getElementById('swal-confirm').value
+                            }
+                        }
+                    });
+
+                    if (formValues) {
+                        const resetRes = await api.post('/api/auth/reset-password', {
+                            email,
+                            ...formValues
+                        });
+                        if (resetRes.data.success) {
+                            Swal.fire('Success', 'Password reset successfully!', 'success');
+                        }
+                    }
+                }
+            } catch (err) {
+                Swal.fire('Error', err.response?.data?.message || 'Failed to send code', 'error');
+            }
+        }
+    });
 
     if (path.includes('dashboard.html')) loadDashboard();
     if (path.includes('subscription.html')) loadPackages();
@@ -168,7 +226,7 @@ async function loadDashboard() {
             document.getElementById('userName').innerText = `Welcome, ${user.fullName}`;
             document.getElementById('accountStatus').innerText = `Status: ${user.accountSection}`;
             document.getElementById('expirationDate').innerText = user.expirationDate ? new Date(user.expirationDate).toLocaleDateString() : 'N/A';
-
+            
             const area = document.getElementById('credentialsArea');
             if (user.accountSection === 'PAID') {
                 area.innerHTML = `
@@ -187,10 +245,9 @@ async function loadPackages() {
     if (!list) return;
     try {
         const res = await api.get('/api/subscription/packages');
-        // FIX: If res.data.data is an object, convert it to an array
         const packagesData = res.data.data;
         const packagesArray = Array.isArray(packagesData) ? packagesData : Object.values(packagesData);
-
+        
         list.innerHTML = packagesArray.map(pkg => `
             <div class="glass p-8 flex flex-col border-2 ${pkg.recommended ? 'border-sky-500' : 'border-transparent'}">
                 <div class="text-sky-400 font-bold mb-2">${pkg.name}</div>
@@ -200,6 +257,58 @@ async function loadPackages() {
             </div>
         `).join('');
     } catch (err) { console.error("Package Load Error:", err); }
+}
+
+// User Actions: Restart Account & Change Password
+async function handleRestartAccount() {
+    const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "This will reset your subscription and credentials!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, restart!'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const res = await api.post('/api/user/restart');
+            if (res.data.success) {
+                Swal.fire('Restarted!', res.data.message, 'success').then(() => location.reload());
+            }
+        } catch (err) {
+            Swal.fire('Error', 'Failed to restart account', 'error');
+        }
+    }
+}
+
+async function handleChangePassword() {
+    const { value: formValues } = await Swal.fire({
+        title: 'Change Password',
+        html:
+            '<input id="old-pass" type="password" class="swal2-input" placeholder="Current Password">' +
+            '<input id="new-pass" type="password" class="swal2-input" placeholder="New Password">' +
+            '<input id="confirm-pass" type="password" class="swal2-input" placeholder="Confirm New Password">',
+        focusConfirm: false,
+        preConfirm: () => {
+            return [
+                document.getElementById('old-pass').value,
+                document.getElementById('new-pass').value,
+                document.getElementById('confirm-pass').value
+            ]
+        }
+    });
+
+    if (formValues) {
+        try {
+            const [oldPassword, newPassword, confirmPassword] = formValues;
+            const res = await api.post('/api/user/change-password', { oldPassword, newPassword, confirmPassword });
+            if (res.data.success) {
+                Swal.fire('Success', 'Password updated!', 'success');
+            }
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.message || 'Failed', 'error');
+        }
+    }
 }
 
 let activeTranId = null;
