@@ -1,5 +1,21 @@
 const BASE_URL = 'https://api-three-tawny-22.vercel.app';
 
+// Firebase Config
+const firebaseConfig = {
+    apiKey: "AIzaSyAe0CaNkka-RG-LiR4Krndg8VDCcVJwC9I",
+    authDomain: "argon-magnet-467304-n4.firebaseapp.com",
+    projectId: "argon-magnet-467304-n4",
+    storageBucket: "argon-magnet-467304-n4.firebasestorage.app",
+    messagingSenderId: "590674512395",
+    appId: "1:590674512395:web:2c6d7b9c201fa53164d50e"
+};
+
+// Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const auth = firebase.auth();
+
 // Helper: Save/Get Auth Token
 const setToken = (token) => localStorage.setItem('token', token);
 const getToken = () => localStorage.getItem('token');
