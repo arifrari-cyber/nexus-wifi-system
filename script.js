@@ -1,9 +1,9 @@
 const BASE_URL = 'https://api-three-tawny-22.vercel.app';
 
 // Helper: Save/Get Auth Token
-const setToken = (token) => localStorage.setItem('nexus_token', token);
-const getToken = () => localStorage.getItem('nexus_token');
-const removeToken = () => localStorage.removeItem('nexus_token');
+const setToken = (token) => localStorage.setItem('token', token);
+const getToken = () => localStorage.getItem('token');
+const removeToken = () => localStorage.removeItem('token');
 
 // Axios Instance
 const api = axios.create({
@@ -45,196 +45,196 @@ const checkAuth = () => {
     }
 };
 
+// Global Helpers
+const showLoading = () => Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+const hideLoading = () => Swal.close();
+
 // Main Initialization
 function init() {
     checkAuth();
     
-    const path = window.location.pathname;
+    // Load Dashboard Data if on dashboard
+    if (window.location.pathname.includes('dashboard.html')) {
+        loadDashboard();
+    }
 
-    // Login Form (Direct Login)
+    // Load Subscription Packages if on subscription page or index
+    if (document.getElementById('packageList')) {
+        loadPackages();
+    }
+
+    // Update User Info in UI
+    const userNameEl = document.getElementById('user-name');
+    if (userNameEl) {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user) {
+            userNameEl.innerText = user.fullName;
+            if (document.getElementById('user-email')) document.getElementById('user-email').innerText = user.email;
+            if (document.getElementById('user-mobile')) document.getElementById('user-mobile').innerText = user.mobile;
+        }
+    }
+
+    // Attach Listeners
+    setupEventListeners();
+}
+
+function setupEventListeners() {
+    // Login Form
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = loginForm.querySelector('button');
-            const original = btn.innerHTML;
-            
-            try {
-                btn.disabled = true;
-                btn.innerHTML = 'Signing in...';
-                const identifier = document.getElementById('identifier').value;
-                const password = document.getElementById('password').value;
-
-                const res = await api.post('/api/auth/login', { identifier, password });
-                
-                if (res.data.success) {
-                    const token = res.data.data?.token || res.data.token;
-                    if (token) setToken(token);
-                    
-                    Swal.fire({ icon: 'success', title: 'Login Success', timer: 1000, showConfirmButton: false })
-                        .then(() => window.location.href = 'dashboard.html');
-                } else {
-                    throw new Error(res.data.message || "Invalid credentials");
-                }
-            } catch (err) {
-                btn.disabled = false;
-                btn.innerHTML = original;
-                const errorMsg = err.response?.data?.message || err.message || 'Login failed';
-                Swal.fire('Error', errorMsg, 'error');
-            }
-        });
+        loginForm.addEventListener('submit', handleLogin);
     }
 
-    // Register Form (With OTP)
+    // Register Form
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = registerForm.querySelector('button');
-            const original = btn.innerHTML;
-            try {
-                const pass = document.getElementById('regPassword').value;
-                const confirm = document.getElementById('confirmPassword').value;
-                const email = document.getElementById('email').value;
-                const mobile = document.getElementById('mobile').value;
-
-                if (pass !== confirm) return Swal.fire('Error', 'Passwords do not match', 'error');
-
-                btn.disabled = true;
-                btn.innerHTML = 'Sending OTP...';
-                
-                // Step 1: Send OTP
-                const otpRes = await api.post('/api/auth/send-register-otp', { email, mobile });
-                
-                if (otpRes.data.success) {
-                    const { value: otp } = await Swal.fire({
-                        title: 'Verify Email',
-                        text: `A 6-digit code has been sent to ${email}`,
-                        input: 'text',
-                        inputPlaceholder: 'Enter OTP',
-                        showCancelButton: true,
-                        confirmButtonText: 'Verify & Register',
-                        inputValidator: (value) => {
-                            if (!value) return 'You need to enter the code!';
-                            if (value.length !== 6) return 'Code must be 6 digits';
-                        }
-                    });
-
-                    if (otp) {
-                        btn.innerHTML = 'Creating Account...';
-                        const data = {
-                            firstName: document.getElementById('firstName').value,
-                            lastName: document.getElementById('lastName').value,
-                            email,
-                            mobile,
-                            password: pass,
-                            confirmPassword: confirm,
-                            otp
-                        };
-
-                        const res = await api.post('/api/auth/register', data);
-                        if (res.data.success) {
-                            Swal.fire('Success', 'Account created! You can now login.', 'success')
-                                .then(() => window.location.href = 'index.html');
-                        }
-                    } else {
-                        btn.disabled = false;
-                        btn.innerHTML = original;
-                    }
-                }
-            } catch (err) {
-                btn.disabled = false;
-                btn.innerHTML = original;
-                Swal.fire('Error', err.response?.data?.message || 'Registration failed', 'error');
-            }
-        });
+        registerForm.addEventListener('submit', handleRegister);
     }
 
-    // Forgot Password Flow
-    document.getElementById('forgotPasswordLink')?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const { value: identifier } = await Swal.fire({
-            title: 'Forgot Password',
-            text: 'Enter your email or mobile to receive a reset code',
-            input: 'text',
-            inputPlaceholder: 'Email or Mobile',
-            showCancelButton: true
-        });
+    // Forgot Password
+    const forgotLink = document.getElementById('forgotPasswordLink');
+    if (forgotLink) {
+        forgotLink.addEventListener('click', handleForgotPassword);
+    }
 
-        if (identifier) {
-            try {
-                Swal.fire({ title: 'Sending...', didOpen: () => Swal.showLoading() });
-                const res = await api.post('/api/auth/forgot-password', { identifier });
-                
-                if (res.data.success) {
-                    const email = res.data.data.email;
-                    const { value: formValues } = await Swal.fire({
-                        title: 'Reset Password',
-                        html:
-                            `<p class="text-sm mb-4">Code sent to ${email}</p>` +
-                            '<input id="swal-otp" class="swal2-input" placeholder="6-digit Code">' +
-                            '<input id="swal-pass" type="password" class="swal2-input" placeholder="New Password">' +
-                            '<input id="swal-confirm" type="password" class="swal2-input" placeholder="Confirm Password">',
-                        focusConfirm: false,
-                        showCancelButton: true,
-                        preConfirm: () => {
-                            return {
-                                otp: document.getElementById('swal-otp').value,
-                                newPassword: document.getElementById('swal-pass').value,
-                                confirmPassword: document.getElementById('swal-confirm').value
-                            }
-                        }
-                    });
-
-                    if (formValues) {
-                        const resetRes = await api.post('/api/auth/reset-password', {
-                            email,
-                            ...formValues
-                        });
-                        if (resetRes.data.success) {
-                            Swal.fire('Success', 'Password reset successfully!', 'success');
-                        }
-                    }
-                }
-            } catch (err) {
-                Swal.fire('Error', err.response?.data?.message || 'Failed to send code', 'error');
-            }
-        }
-    });
-
-    if (path.includes('dashboard.html')) loadDashboard();
-    if (path.includes('subscription.html')) loadPackages();
-
+    // Logout
     document.getElementById('logoutBtn')?.addEventListener('click', () => {
         removeToken();
+        auth.signOut();
         window.location.href = 'index.html';
     });
 }
 
-// Start app
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
+// --- Auth Handlers ---
+
+async function handleRegister(e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    if (data.password !== data.confirmPassword) {
+        return Swal.fire('Error', 'Passwords do not match', 'error');
+    }
+
+    showLoading();
+    try {
+        // 1. Create user in Firebase Auth
+        const userCredential = await auth.createUserWithEmailAndPassword(data.email, data.password);
+        const user = userCredential.user;
+
+        // 2. Send Verification Email
+        await user.sendEmailVerification();
+
+        // 3. Save additional info in our backend/Firestore
+        await axios.post(`${BASE_URL}/api/auth/register`, {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            mobile: data.mobile,
+            uid: user.uid
+        });
+
+        hideLoading();
+        Swal.fire({
+            title: 'Verify Your Email',
+            text: 'A verification link has been sent to your email. Please verify and then log in.',
+            icon: 'success'
+        }).then(() => {
+            window.location.href = 'index.html';
+        });
+    } catch (error) {
+        hideLoading();
+        Swal.fire('Registration Failed', error.message, 'error');
+    }
 }
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    showLoading();
+    try {
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        if (!user.emailVerified) {
+            hideLoading();
+            await auth.signOut();
+            return Swal.fire({
+                title: 'Email Not Verified',
+                text: 'Please verify your email before logging in.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Resend Email',
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await user.sendEmailVerification();
+                    Swal.fire('Sent!', 'Verification email resent.', 'success');
+                }
+            });
+        }
+
+        const idToken = await user.getIdToken();
+        const response = await axios.post(`${BASE_URL}/api/auth/login`, { idToken });
+
+        if (response.data.success) {
+            setToken(response.data.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+            hideLoading();
+            window.location.href = 'dashboard.html';
+        }
+    } catch (error) {
+        hideLoading();
+        Swal.fire('Login Failed', error.message, 'error');
+    }
+}
+
+async function handleForgotPassword(e) {
+    e.preventDefault();
+    const { value: email } = await Swal.fire({
+        title: 'Reset Password',
+        input: 'email',
+        inputLabel: 'Enter your registered email address',
+        inputPlaceholder: 'email@example.com',
+        showCancelButton: true
+    });
+
+    if (email) {
+        showLoading();
+        try {
+            await auth.sendPasswordResetEmail(email);
+            hideLoading();
+            Swal.fire('Success', 'Password reset link sent to your email!', 'success');
+        } catch (error) {
+            hideLoading();
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+}
+
+// --- Dashboard & Subscription Logic ---
 
 async function loadDashboard() {
     try {
         const res = await api.get('/api/user/profile');
         if (res.data.success) {
             const user = res.data.data.user;
-            document.getElementById('userName').innerText = `Welcome, ${user.fullName}`;
-            document.getElementById('accountStatus').innerText = `Status: ${user.accountSection}`;
-            document.getElementById('expirationDate').innerText = user.expirationDate ? new Date(user.expirationDate).toLocaleDateString() : 'N/A';
+            if (document.getElementById('userName')) document.getElementById('userName').innerText = `Welcome, ${user.fullName}`;
+            if (document.getElementById('accountStatus')) document.getElementById('accountStatus').innerText = `Status: ${user.accountSection}`;
+            if (document.getElementById('expirationDate')) document.getElementById('expirationDate').innerText = user.expirationDate ? new Date(user.expirationDate).toLocaleDateString() : 'N/A';
             
             const area = document.getElementById('credentialsArea');
-            if (user.accountSection === 'PAID') {
-                area.innerHTML = `
-                    <div class="space-y-1"><label class="text-[10px] text-slate-500 uppercase">Username</label><div class="p-3 bg-white/5 rounded-lg font-mono text-sm border border-white/5">${user.pppoe_username}</div></div>
-                    <div class="space-y-1"><label class="text-[10px] text-slate-500 uppercase">Password</label><div class="p-3 bg-white/5 rounded-lg font-mono text-sm border border-white/5">${user.pppoe_password}</div></div>
-                `;
-            } else {
-                area.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 italic">No credentials. Upgrade to PAID.</div>';
+            if (area) {
+                if (user.accountSection === 'PAID') {
+                    area.innerHTML = `
+                        <div class="space-y-1"><label class="text-[10px] text-slate-500 uppercase">Username</label><div class="p-3 bg-white/5 rounded-lg font-mono text-sm border border-white/5">${user.pppoe_username}</div></div>
+                        <div class="space-y-1"><label class="text-[10px] text-slate-500 uppercase">Password</label><div class="p-3 bg-white/5 rounded-lg font-mono text-sm border border-white/5">${user.pppoe_password}</div></div>
+                    `;
+                } else {
+                    area.innerHTML = '<div class="col-span-full text-center py-10 text-slate-500 italic">No credentials. Upgrade to PAID.</div>';
+                }
             }
         }
     } catch (err) { console.error("Dashboard Load Error:", err); }
@@ -259,82 +259,43 @@ async function loadPackages() {
     } catch (err) { console.error("Package Load Error:", err); }
 }
 
-// User Actions: Restart Account & Change Password
-async function handleRestartAccount() {
-    const result = await Swal.fire({
-        title: 'Are you sure?',
-        text: "This will reset your subscription and credentials!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, restart!'
-    });
-
-    if (result.isConfirmed) {
-        try {
-            const res = await api.post('/api/user/restart');
-            if (res.data.success) {
-                Swal.fire('Restarted!', res.data.message, 'success').then(() => location.reload());
-            }
-        } catch (err) {
-            Swal.fire('Error', 'Failed to restart account', 'error');
-        }
-    }
-}
-
-async function handleChangePassword() {
-    const { value: formValues } = await Swal.fire({
-        title: 'Change Password',
-        html:
-            '<input id="old-pass" type="password" class="swal2-input" placeholder="Current Password">' +
-            '<input id="new-pass" type="password" class="swal2-input" placeholder="New Password">' +
-            '<input id="confirm-pass" type="password" class="swal2-input" placeholder="Confirm New Password">',
-        focusConfirm: false,
-        preConfirm: () => {
-            return [
-                document.getElementById('old-pass').value,
-                document.getElementById('new-pass').value,
-                document.getElementById('confirm-pass').value
-            ]
-        }
-    });
-
-    if (formValues) {
-        try {
-            const [oldPassword, newPassword, confirmPassword] = formValues;
-            const res = await api.post('/api/user/change-password', { oldPassword, newPassword, confirmPassword });
-            if (res.data.success) {
-                Swal.fire('Success', 'Password updated!', 'success');
-            }
-        } catch (err) {
-            Swal.fire('Error', err.response?.data?.message || 'Failed', 'error');
-        }
-    }
-}
-
 let activeTranId = null;
 async function initiatePayment(packageType) {
     try {
         Swal.fire({ title: 'Requesting...', didOpen: () => Swal.showLoading() });
         const res = await api.post('/api/payment/cck-te', { packageType, method: 'BKASH' });
         activeTranId = res.data.data.tranId;
-        document.getElementById('merchantNumber').innerText = res.data.data.paymentNumber;
-        document.getElementById('refId').innerText = res.data.data.tranId;
-        Swal.close();
-        document.getElementById('paymentModal').classList.remove('hidden');
-        lucide.createIcons();
+        const modal = document.getElementById('paymentModal');
+        if (modal) {
+            document.getElementById('merchantNumber').innerText = res.data.data.paymentNumber;
+            document.getElementById('refId').innerText = res.data.data.tranId;
+            Swal.close();
+            modal.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
     } catch (err) { Swal.fire('Error', 'Payment failed', 'error'); }
 }
 
-function closeModal() { document.getElementById('paymentModal').classList.add('hidden'); }
+function closeModal() { document.getElementById('paymentModal')?.classList.add('hidden'); }
 
 document.getElementById('verifyBtn')?.addEventListener('click', async () => {
     const trxId = document.getElementById('trxId').value;
     if (!trxId) return Swal.fire('Warning', 'Enter TrxID', 'warning');
     try {
-        Swal.fire({ title: 'Verifying...', didOpen: () => Swal.showLoading() });
+        showLoading();
         const res = await api.post('/api/payment/verify', { tranId: activeTranId, trxId, method: 'BKASH' });
         if (res.data.success) {
             Swal.fire('Success', res.data.message, 'success').then(() => window.location.href = 'dashboard.html');
         }
-    } catch (err) { Swal.fire('Error', err.response?.data?.message || 'Failed', 'error'); }
+    } catch (err) { 
+        hideLoading();
+        Swal.fire('Error', err.response?.data?.message || 'Verification failed', 'error'); 
+    }
 });
+
+// App Start
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}

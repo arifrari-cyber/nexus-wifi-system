@@ -23,31 +23,31 @@
         <form id="registerForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="input-group">
                 <label>First Name</label>
-                <input type="text" id="firstName" placeholder="Arif" required>
+                <input type="text" id="firstName" name="firstName" placeholder="Arif" required>
             </div>
             <div class="input-group">
                 <label>Last Name</label>
-                <input type="text" id="lastName" placeholder="Islam" required>
+                <input type="text" id="lastName" name="lastName" placeholder="Islam" required>
             </div>
             <div class="input-group">
                 <label>Email Address</label>
-                <input type="email" id="email" placeholder="arif@example.com" required>
+                <input type="email" id="email" name="email" placeholder="arif@example.com" required>
             </div>
             <div class="input-group">
                 <label>Mobile Number</label>
-                <input type="tel" id="mobile" placeholder="017XXXXXXXX" required>
+                <input type="tel" id="mobile" name="mobile" placeholder="017XXXXXXXX" required>
             </div>
             <div class="input-group">
                 <label>Password</label>
-                <input type="password" id="regPassword" placeholder="••••••••" required>
+                <input type="password" id="regPassword" name="password" placeholder="••••••••" required>
             </div>
             <div class="input-group">
                 <label>Confirm Password</label>
-                <input type="password" id="confirmPassword" placeholder="••••••••" required>
+                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="••••••••" required>
             </div>
 
             <div class="md:col-span-2 pt-4">
-                <button type="submit" class="btn-primary w-full flex items-center justify-center gap-2">
+                <button type="submit" id="registerBtn" class="btn-primary w-full flex items-center justify-center gap-2">
                     <i data-lucide="user-plus" class="w-5 h-5"></i>
                     Create Account
                 </button>
