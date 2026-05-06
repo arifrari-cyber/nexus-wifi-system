@@ -53,13 +53,44 @@ const checkAuth = () => {
     const path = window.location.pathname;
     const isLoginPage = path.includes('index.html') || path.endsWith('/') || path.endsWith('/nexus-wifi-system/') || path.endsWith('/nexus-wifi-system');
     const isRegisterPage = path.includes('register.html');
+    const isResetPage = path.includes('reset-password.html');
 
-    if (token && (isLoginPage || isRegisterPage)) {
+    if (token && (isLoginPage || isRegisterPage || isResetPage)) {
         window.location.href = 'dashboard.html';
-    } else if (!token && !isLoginPage && !isRegisterPage) {
+    } else if (!token && !isLoginPage && !isRegisterPage && !isResetPage) {
         window.location.href = 'index.html';
     }
 };
+
+// --- Password Reset Handler ---
+async function handleResetPasswordSubmit(e) {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (newPassword !== confirmPassword) {
+        return Swal.fire('Error', 'Passwords do not match', 'error');
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const oobCode = urlParams.get('oobCode');
+
+    if (!oobCode) {
+        return Swal.fire('Error', 'Invalid or missing reset code.', 'error');
+    }
+
+    showLoading();
+    try {
+        await auth.confirmPasswordReset(oobCode, newPassword);
+        hideLoading();
+        Swal.fire('Success', 'Password updated successfully!', 'success').then(() => {
+            window.location.href = 'index.html';
+        });
+    } catch (error) {
+        hideLoading();
+        Swal.fire('Error', error.message, 'error');
+    }
+}
 
 // Global Helpers
 const showLoading = () => Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
