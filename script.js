@@ -223,7 +223,7 @@ async function handleForgotPassword(e) {
     if (email) {
         showLoading();
         try {
-            await auth.sendPasswordResetEmail(email);
+            await api.post('/api/auth/forgot-password', { email });
             hideLoading();
             Swal.fire('Success', 'Password reset link sent to your email!', 'success');
         } catch (error) {
