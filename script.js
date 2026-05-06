@@ -294,7 +294,7 @@ async function loadPackages() {
     if (!list) return;
     try {
         console.log("Fetching packages...");
-        const res = await api.get('/api/subscription/packages');
+        const res = await api.get('/api/packages');
         console.log("Packages Response:", res.data);
         
         const packagesData = res.data.data;
